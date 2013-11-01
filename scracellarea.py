@@ -11,8 +11,7 @@ import sqlite3
 
 import Queue
 import threading
-
-DEST="http://www.ip138.com:8080/search.asp?action=mobile&mobile="
+import time
 
 class ThreadWork(threading.Thread):
     def __init__(self, out_queue, database):
@@ -37,25 +36,29 @@ class ThreadWork(threading.Thread):
         
 
 
-class ThreadUrl(threading.Thread):
+class ThreadIp(threading.Thread):
     """
-    线程
+    ip138.com
     """
     def __init__(self, queue, out_queue):
         threading.Thread.__init__(self)
         self.queue = queue
         self.out_queue = out_queue
-        
+        self.dest = "http://www.ip138.com:8080/search.asp?action=mobile&mobile="
+
     def run(self):
         while True:
             print "Start %s ...." % self.name
             num = self.queue.get()
-        
+
+            # 睡眠一下
+            time.sleep(20)
+
             try:
                 # 补足num的长度到标准手机号码
                 new_num = "%d0123" % num
         
-                url = "%s%s" % (DEST, new_num)
+                url = "%s%s" % (self.dest, new_num)
                 # 获取查询结果
                 req = urllib2.Request(url, headers={'User-Agent' : "Magic Browser",
                                                 'Referer':"http://www.ip138.com:8080"})
@@ -89,6 +92,57 @@ class ThreadUrl(threading.Thread):
             finally:
                 print "%s: task done" % self.name
                 self.queue.task_done()
+
+
+class ThreadTenpay(threading.Thread):
+    """
+    tenpay, xml格式
+    """
+    def __init__(self, queue, out_queue):
+        threading.Thread.__init__(self)
+        self.queue = queue
+        self.out_queue = out_queue
+        self.dest = "http://life.tenpay.com/cgi-bin/mobile/MobileQueryAttribution.cgi?chgmobile="
+
+    def run(self):
+        while True:
+            print "Start %s ...." % self.name
+            num = self.queue.get()
+
+            # 睡眠一下
+            time.sleep(5)
+
+            try:
+                # 补足num的长度到标准手机号码
+                new_num = "%d0123" % num
+        
+                url = "%s%s" % (self.dest, new_num)
+                # 获取查询结果
+                req = urllib2.Request(url, headers={'User-Agent' : "Magic Browser",
+                                                'Referer':"http://life.tenpay.com"})
+
+                webpage = urllib2.urlopen(req)
+
+
+                # 分析页面
+                soup = BeautifulSoup(webpage.read())
+
+                root = soup.find('root')
+
+                province = root.find('province').text.strip()
+                city = root.find('city').text.strip()
+                area = "%s %s" % (province, city)
+
+                cardtype = root.find('supplier').text.strip()
+                areacode = ""
+
+                print "%s:%s %s %s" % (self.name, area, cardtype, areacode)
+                # 插入数据库
+                self.out_queue.put((num, area, cardtype, areacode))
+
+            finally:
+                print "%s: task done" % self.name
+                self.queue.task_done()
         
 if __name__ == '__main__':
     start_num = int(sys.argv[1])
@@ -110,7 +164,7 @@ if __name__ == '__main__':
     
     # 开始分析线程
     for i in range(1):
-        t = ThreadUrl(queue, out_queue)
+        t = ThreadTenpay(queue, out_queue)
         t.setDaemon(True)
         t.start()
         
