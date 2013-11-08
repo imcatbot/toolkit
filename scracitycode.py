@@ -31,8 +31,10 @@ class ThreadSohao(threading.Thread):
         c = conn.cursor()
 
         # 创建表
-        c.execute('''CREATE TABLE IF NOT EXISTS citycode
-             (province text, city text, code text)''')
+        #c.execute('''CREATE TABLE IF NOT EXISTS citycode
+        #    (province text, city text, code text)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS cells
+             (number text unique, area text, cardtype text, areacode text)''')
 
         
         # 获取查询结果
@@ -63,8 +65,8 @@ class ThreadSohao(threading.Thread):
                         code = tds[i+1].text.strip()
                         print "%s %s %s" % (province, tds[i].text.strip(), tds[i+1].text.strip())
                         # 插入数据库
-                        item = (province, city, code)
-                        c.execute("INSERT INTO citycode VALUES (?, ?, ?)", item)
+                        item = (code, "%s %s" % (province, city), "", "")
+                        c.execute("INSERT INTO cells VALUES (?, ?, ?, ?)", item)
                         
                     i += 2
         # 保存到硬盘
