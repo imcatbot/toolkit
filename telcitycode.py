@@ -26,7 +26,7 @@ class ThreadSohao(threading.Thread):
         url = self.dest
 
         # 连接数据库
-        database = "example.db"
+        database = "citytelcode.db"
         conn = sqlite3.connect(database)
         c = conn.cursor()
 
