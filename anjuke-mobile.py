@@ -28,8 +28,8 @@ class ThreadWork(threading.Thread):
         conn = sqlite3.connect(self.database)
         c = conn.cursor()            
         # 创建表,如果不存在
-        c.execute('''CREATE TABLE IF NOT EXISTS AGENT
-             (number text unique, name text, company text, branch text)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS agent
+             (number text unique, name text, company text, branch text, city text)''')
         
         # 读取输入结果
         while True:
@@ -37,7 +37,7 @@ class ThreadWork(threading.Thread):
 
             # 插入数据库
             try:
-                c.execute("INSERT INTO AGENT VALUES (?, ?, ?, ?)", item)
+                c.execute("INSERT INTO agent VALUES (?, ?, ?, ?, ?)", item)
                 # 保存到硬盘
                 conn.commit()
             except:
@@ -84,9 +84,12 @@ class ThreadFetcher(threading.Thread):
 
                 # 去除空格
                 mobile = "".join(mobile.split(" "))
-        
-                print "%s %s %s %s " % (mobile, agent_name, agent_company, agent_sub_company)
-                self.out_queue.put((mobile, agent_name, agent_company, agent_sub_company))
+                
+                # 从url提取城市
+                city = url.split(".")[0].split("//")[1]
+
+                print "%s %s %s %s %s" % (mobile, agent_name, agent_company, agent_sub_company, city)
+                self.out_queue.put((mobile, agent_name, agent_company, agent_sub_company, city))
 
             except:
                 print "%s: exception" % self.name
@@ -170,9 +173,8 @@ if __name__ == '__main__':
         for p in range(1, 6):
             url = "%s/sale/p%d" % (c, p)
             urls.append(url)
-    print urls
-    sys.exit(0)
 
+    # 遍历所有链接
     for url in urls:
         # 分析页面
         soup = get_soup_object(url)
@@ -191,6 +193,8 @@ if __name__ == '__main__':
             # 填充队列
             queue.put(href)
 
+#            break
+#        break
 
     # 等待队列结束
     queue.join()
