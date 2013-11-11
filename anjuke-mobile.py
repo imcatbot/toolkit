@@ -41,7 +41,7 @@ class ThreadWork(threading.Thread):
                 # 保存到硬盘
                 conn.commit()
             except:
-                print "Exception in inserting %s " % item
+                print "Exception in inserting "
 
             self.out_queue.task_done()
 
@@ -94,6 +94,23 @@ class ThreadFetcher(threading.Thread):
                 print "%s: task done" % self.name
                 self.queue.task_done()
 
+def get_soup_object(url):
+    """
+    返回beautifulsoup的实例
+    """
+    obj = None
+
+    req = urllib2.Request(url, headers={'User-Agent' : "Magic Browser",
+                                        'Referer':"http://life.tenpay.com"})
+
+    webpage = urllib2.urlopen(req)
+
+    # 分析页面
+    obj = BeautifulSoup(webpage.read())
+    
+    return obj
+
+
 if __name__ == '__main__':
 
     # 解析参数
@@ -123,28 +140,56 @@ if __name__ == '__main__':
     t.setDaemon(True)
     t.start()
 
-    url = "%s%d" %(navigator_page_prefix, 1)
+    # 获取城市列表
+    city_url = "http://www.anjuke.com/index/"
 
-    req = urllib2.Request(url, headers={'User-Agent' : "Magic Browser",
-                                        'Referer':"http://life.tenpay.com"})
+    soup = get_soup_object(city_url)
 
-    webpage = urllib2.urlopen(req)
+    links = soup.find(id="location").find_all("a")
 
+    hot_city_links = []
+    cold_city_links = []
+    # 热门城市
+    for link in links:
+        hot_city_links.append(link.get("href"))
+        
+    links = soup.find("div", {"class": "cities_boxer"}).find_all("a")
+    # 所有城市(不包括热门城市)
+    for link in links:
+        if hot_city_links.count("%s/" % link.get("href")) == 0:
+            cold_city_links.append("%s/" % link.get("href"))
 
-    # 分析页面
-    soup = BeautifulSoup(webpage.read())
-
-    # 提取房源信息链接
-    root = soup.find(id = 'apf_id_12_list')
+    #热门城市查前面20页，冷门城市查前5页
+    urls = []
+    for c in hot_city_links:
+        for p in range(1, 21):
+            url = "%s/sale/p%d" % (c, p)
+            urls.append(url)
     
-    lis = root.findAll('li')
-    for li in lis:
-        link = li.find("a")
-        href = link.get("href").split("?")[0]
-        print href
+    for c in cold_city_links:
+        for p in range(1, 6):
+            url = "%s/sale/p%d" % (c, p)
+            urls.append(url)
+    print urls
+    sys.exit(0)
 
-        # 填充队列
-        queue.put(href)
+    for url in urls:
+        # 分析页面
+        soup = get_soup_object(url)
+    
+        # 提取房源信息链接
+        root = soup.find(id = 'apf_id_12_list')
+        if root is None:
+            continue
+
+        lis = root.findAll('li')
+        for li in lis:
+            link = li.find("a")
+            href = link.get("href").split("?")[0]
+            print href
+
+            # 填充队列
+            queue.put(href)
 
 
     # 等待队列结束
