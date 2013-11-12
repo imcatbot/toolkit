@@ -36,7 +36,7 @@ class ThreadWork(threading.Thread):
         while True:
             item = out_queue.get()
             item1 = tuple(item[:-1])
-            item2 = tuple(item[-1])
+            item2 = (item[-1],)
 
             # 插入数据库
             try:
@@ -48,7 +48,6 @@ class ThreadWork(threading.Thread):
 
             try:
                 # 保存历史
-                item2 = (url)
                 c.execute("INSERT INTO history VALUES (?)", item2)
 
             except:
@@ -224,7 +223,7 @@ if __name__ == '__main__':
                 exist = True
             
             # 如果已经存在，并且不强制刷新，则忽略
-            if exist == True && force == False:
+            if exist == True and force == False:
                 print "%s 已存在，忽略" % href
                 continue
 
