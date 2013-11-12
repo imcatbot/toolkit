@@ -14,6 +14,7 @@ import sys
 
 DEFAULT_DATABASE = "houseagent.sqlite"
 DEFAULT_THREAD_NUMS = 1
+DEFAULT_FORCE = False
 
 navigator_page_prefix = "http://guangzhou.anjuke.com/sale/p"
 
@@ -34,15 +35,26 @@ class ThreadWork(threading.Thread):
         # 读取输入结果
         while True:
             item = out_queue.get()
+            item1 = tuple(item[:-1])
+            item2 = tuple(item[-1])
 
             # 插入数据库
             try:
-                c.execute("INSERT INTO agent VALUES (?, ?, ?, ?, ?)", item)
+                c.execute("INSERT INTO agent VALUES (?, ?, ?, ?, ?)", item1)
                 # 保存到硬盘
-                conn.commit()
-            except:
-                print "Exception in inserting "
 
+            except:
+                print "Exception in inserting data"
+
+            try:
+                # 保存历史
+                item2 = (url)
+                c.execute("INSERT INTO history VALUES (?)", item2)
+
+            except:
+                print "Exception in inserting history"
+
+            conn.commit()
             self.out_queue.task_done()
 
 class ThreadFetcher(threading.Thread):
@@ -89,7 +101,7 @@ class ThreadFetcher(threading.Thread):
                 city = url.split(".")[0].split("//")[1]
 
                 print "%s %s %s %s %s" % (mobile, agent_name, agent_company, agent_sub_company, city)
-                self.out_queue.put((mobile, agent_name, agent_company, agent_sub_company, city))
+                self.out_queue.put([mobile, agent_name, agent_company, agent_sub_company, city, url])
 
             except:
                 print "%s: exception" % self.name
@@ -123,10 +135,22 @@ if __name__ == '__main__':
         thread_nums = DEFAULT_THREAD_NUMS
 
     try:
-        database = int(sys.argv[2])
+        database = sys.argv[2]
     except:
         database = DEFAULT_DATABASE
 
+    try:
+        force = int(sys.argv[3]) > 0
+    except:
+        force = DEFAULT_FORCE
+
+    # 初始化历史数据库
+    conn2 = sqlite3.connect(database)
+    c2 = conn2.cursor()            
+    # 创建表,如果不存在
+    c2.execute('''CREATE TABLE IF NOT EXISTS history
+             (url text unique)''')
+    
     # 初始化队列
     queue = Queue.Queue()
     out_queue = Queue.Queue()
@@ -188,14 +212,28 @@ if __name__ == '__main__':
         for li in lis:
             link = li.find("a")
             href = link.get("href").split("?")[0]
-            print href
+
+            # 检查href是否已经在历史记录中
+            t = (href,)
+            rows = c2.execute("SELECT * FROM history where url=?", t)
+
+            old_url= rows.fetchone()
+            
+            exist = False
+            if old_url != None:
+                exist = True
+            
+            # 如果已经存在，并且不强制刷新，则忽略
+            if exist == True && force == False:
+                print "%s 已存在，忽略" % href
+                continue
 
             # 填充队列
             queue.put(href)
 
 #            break
-#        break
 
+    conn2.close()
     # 等待队列结束
     queue.join()
     out_queue.join()
