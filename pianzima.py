@@ -162,7 +162,7 @@ if __name__ == '__main__':
                   "http://www.pianzima.com/guhua_"]
 
     for prefix in url_prefix:
-        for i in range(1, 200):
+        for i in range(1, 5):
             mobile_index_url = "%s%d" % (prefix, i)
             
             soup = get_soup_object(mobile_index_url)
