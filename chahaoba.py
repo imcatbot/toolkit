@@ -235,7 +235,7 @@ if __name__ == '__main__':
         
         last_word = href.split("/")[-1][-6:].encode("utf-8")
         if last_word == "%AD%90":
-            href = "http://www.chahaoba.com/" + href
+            href = "http://www.chahaoba.com" + href
             print "link=", href
             queue.put(href)
 
