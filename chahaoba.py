@@ -216,7 +216,29 @@ if __name__ == '__main__':
     t.setDaemon(True)
     t.start()
 
-    # 获取手机号码列表
+    # 获取手机号码页
+    req = urllib2.Request(start_url, headers={'User-Agent' : "Magic Browser",
+                                        'Referer':"http://www.chahaoba.com"})
+
+    webpage = urllib2.urlopen(req)
+                
+    # 分析页面
+    soup = BeautifulSoup(webpage.read())
+
+    # 提取评论
+    links = soup.find_all('a')
+
+    for link in links:
+        href = link.get("href")
+        if href is None:
+            continue
+        
+        last_word = href.split("/")[-1][-6:].encode("utf-8")
+        if last_word == "%AD%90":
+            href = "http://www.chahaoba.com/" + href
+            print "link=", href
+            queue.put(href)
+
     # 填充队列
     queue.put(start_url)
 
