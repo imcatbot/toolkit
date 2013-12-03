@@ -68,9 +68,12 @@ if __FILE__ == $0
         times = 0
       end
       
-      # 如果已经连续发布3次，忽略该主题
-      next if times >= 3
-      
+      # 如果me已经连续发布3次，忽略该主题
+      next if times >= 3 and me == author
+
+      # 睡眠2分钟
+      sleep(60*2)
+
       page.links.each do |pl|
         next if pl.href != link["href"]
         # 跳转到该主题
@@ -90,7 +93,7 @@ if __FILE__ == $0
         puts "正在回复", link.text, msg
         fast_postform = subject_page.forms_with(:id=>"fastpostform").first()
         fast_postform.message = msg
-        #agent.submit(fast_postform)
+        agent.submit(fast_postform)
 
         # 记录,如果上一次不是'我'回帖，则计数为1,否则，累加1
         if me != author
@@ -104,10 +107,8 @@ if __FILE__ == $0
         end
         break
       end
-      break
     end
     
-    break
   end
 
 end
