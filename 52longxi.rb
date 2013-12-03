@@ -76,10 +76,20 @@ if __FILE__ == $0
         # 跳转到该主题
         subject_page = pl.click()
 
+        # 读取随机内容
+        lines = []
+        File.open(ARGV[2], "r") do |file|
+          while line = file.gets
+            lines.push(line)
+          end
+        end
+
+        msg = lines.sample
+        
         # 获取快速回帖表单
-        puts "正在回复", link.text
+        puts "正在回复", link.text, msg
         fast_postform = subject_page.forms_with(:id=>"fastpostform").first()
-        fast_postform.message = "必须绝对支持楼主，楼主V5"
+        fast_postform.message = msg
         #agent.submit(fast_postform)
 
         # 记录,如果上一次不是'我'回帖，则计数为1,否则，累加1
