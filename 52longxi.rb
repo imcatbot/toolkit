@@ -57,12 +57,10 @@ if __FILE__ == $0
     
   end
 
-  # 遍历论坛，如果有新贴，则回帖
-  # 每个板块的第一页，如果该贴没有回复，则回复
-  # 如果该贴的最后一个回复者是本人，且回复时间在2各小时内，则不回复
-  # 每个贴尝试3次回复
-  plates.each do |plate|
-
+  # 随机在三个论坛发帖
+  3.times.each do |x|
+    plate = plates.sample
+    
     page = plate.click()
 
     sub_page = page.search('table#threadlisttableid')
