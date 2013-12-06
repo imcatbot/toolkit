@@ -5,6 +5,15 @@ require 'rubygems'
 require 'mechanize'
 require 'sqlite3'
 
+# 获取指定的链接对象,且只返回一个
+def get_page_link(links, href)
+  links.each do |link|
+    if link.href == href
+      return link
+    end
+  end
+end
+
 # 主函数
 if __FILE__ == $0
 
@@ -16,11 +25,23 @@ if __FILE__ == $0
   # 获取登录表单
   login_form = page.forms.first()
 
-  login_form.username = ARGV[0]
-  login_form.password = ARGV[1]
+  # 从文件读取随机用户
+  lines = []
+  File.open(ARGV[0], "r") do |file|
+    while line = file.gets
+      # 添加前去换行符号
+      lines.push(line.chomp)
+    end
+  end
 
+  user = lines.sample
+  
+  login_form.username = user.split[0]
+  login_form.password = user.split[1]
+  
+  puts "用户:%s" % [user.split[0]]
   page = agent.submit(login_form)
-
+  
   plates = []
   # 找出所有的板块
   page.links.each do |link|
@@ -37,11 +58,11 @@ if __FILE__ == $0
   end
 
   # 遍历论坛，如果有新贴，则回帖
-
   # 每个板块的第一页，如果该贴没有回复，则回复
   # 如果该贴的最后一个回复者是本人，且回复时间在2各小时内，则不回复
   # 每个贴尝试3次回复
   plates.each do |plate|
+
     page = plate.click()
 
     sub_page = page.search('table#threadlisttableid')
@@ -54,7 +75,7 @@ if __FILE__ == $0
       link = th.search("a")[1]
       author = tbody.search("cite").search("a")[0].text
       
-      me = ARGV[0]
+      me = user.split[0]
       # 检查历史记录，如果'我'已经连续3次回帖，则跳过
       times = db.get_first_value( "select times from history where href=? and author=?", 
                                   link["href"],
@@ -69,44 +90,49 @@ if __FILE__ == $0
       end
       
       # 如果me已经连续发布3次，忽略该主题
-      next if times >= 3 and me == author
-
-      # 睡眠2分钟
-      sleep(60*2)
-
-      page.links.each do |pl|
-        next if pl.href != link["href"]
-        # 跳转到该主题
-        subject_page = pl.click()
-
-        # 读取随机内容
-        lines = []
-        File.open(ARGV[2], "r") do |file|
-          while line = file.gets
-            lines.push(line)
-          end
-        end
-
-        msg = lines.sample
-        
-        # 获取快速回帖表单
-        puts "正在回复", link.text, msg
-        fast_postform = subject_page.forms_with(:id=>"fastpostform").first()
-        fast_postform.message = msg
-        agent.submit(fast_postform)
-
-        # 记录,如果上一次不是'我'回帖，则计数为1,否则，累加1
-        if me != author
-          db.execute("update history set times=1 where href=? and author=?", 
-                     link["href"],
-                     me)
-        else
-          db.execute("update history set times=times+1 where href=? and author=?", 
-                     link["href"],
-                     me)
-        end
-        break
+      if times >= 1 and me == author
+        puts "%s[%d] -- %s, 忽略!" % [author, times, me]
+        next
       end
+      
+      # 睡眠2分钟
+      print "睡眠2分钟..."
+      sleep(60*2)
+      puts "!"
+
+      # 获取链接对象
+      link_obj = get_page_link(page.links, link["href"])
+      
+      subject_page = link_obj.click()
+      
+      # 读取随机内容
+      lines = []
+      File.open(ARGV[1], "r") do |file|
+        while line = file.gets
+          lines.push(line)
+        end
+      end
+
+      msg = lines.sample
+        
+      # 获取快速回帖表单
+      puts "回复:[%s][%s] --> %s" % [plate.text, link.text[0..20], msg[0..20]]
+      
+      fast_postform = subject_page.forms_with(:id=>"fastpostform").first()
+      fast_postform.message = msg
+      agent.submit(fast_postform)
+
+      # 记录,如果上一次不是'我'回帖，则计数为1,否则，累加1
+      if me != author
+        db.execute("update history set times=1 where href=? and author=?", 
+                   link["href"],
+                   me)
+      else
+        db.execute("update history set times=times+1 where href=? and author=?", 
+                   link["href"],
+                   me)
+      end
+
     end
     
   end
